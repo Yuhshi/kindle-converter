@@ -1,0 +1,32 @@
+font: フォントファイルのパス
+index: false
+title: タイトル
+name: ファイル名
+base: URLの共通部分
+css: 
+  - 使用するCSSのURL
+html:
+  - 取り込むHTMLのURL
+convert: |-
+  # convert という名前の関数を書く。
+  # 元のHTMLのソース, CSSの相対パスが渡されるので、lxml の html のインスタンスを返す。
+  def convert(src, css_list):
+    src = lxml.html.fromstring(src)
+    dst = lxml.html.fromstring(DEFAULT_PAGE_HTML)
+    head = dst.xpath('//head')[0]
+    body = dst.xpath('//body')[0]
+
+    for css in css_list:
+        style = lxml.html.fromstring('<link rel="stylesheet" type="text/css" />')
+        style.set('href', '../' + css)
+        head.append(style)
+
+    title = src.xpath('//title')[0]
+    head.append(title)
+
+    contents = src.xpath('//div[@id="contents"]')[0]
+    contents.xpath('//div[@class="page"]')[0].drop_tree()
+    body.append(contents)
+    
+    return dst
+
