@@ -10,6 +10,7 @@ import os
 import os.path
 import shutil
 import time
+import mimetypes
 
 DEFAULT_PAGE_HTML = """\
 <html>
@@ -41,7 +42,7 @@ DEFAULT_OPF = """\
     <dc-metadata xmlns:dc="http://purl.org/metadata/dublin_core"
     xmlns:oebpackage="http://openebook.org/namespaces/oeb-package/1.0/">
       <dc:Title></dc:Title>
-      <dc:Language>en-us</dc:Language>
+      <dc:Language>ja-jp</dc:Language>
       <dc:Creator></dc:Creator>
       <dc:Description></dc:Description>
       <dc:Date>01/12/2015</dc:Date>
@@ -102,27 +103,30 @@ except Exception as e:
     raise
 
 
-
 # CSS 取得
 css_list = [];
 if (not os.path.exists('style')):
     os.mkdir('style')
-for url in config['css']:
-    filename = 'style/' + get_filename_from_url(url, config['base'])
-    if (os.path.exists(filename)): continue
-    file_put_contents(urllib2.urlopen(url).read(), filename)
+if config['css']:
+    for url in config['css']:
+        filename = 'style/' + get_filename_from_url(url, config['base'])
+        css_list.append(filename)
+        if (os.path.exists(filename)): continue
+        file_put_contents(urllib2.urlopen(url).read(), filename)
+        time.sleep(1)
 
 # 元の HTML を保存する (すでにあればそれ以上取得しない)
-original_list = [];
-if (not os.path.exists('original')):
-    os.mkdir('original')
-for url in config['html']:
-    filename = 'original/' + get_filename_from_url(url, config['base'])
-    original_list.append(filename)
-    if (os.path.exists(filename)): continue
-    mkdir_if_not_exist(filename)
-    file_put_contents(urllib2.urlopen(url).read(), filename)
-    time.sleep(1)
+if not config['skip_download_html']:
+    original_list = [];
+    if (not os.path.exists('original')):
+        os.mkdir('original')
+    for url in config['html']:
+        filename = 'original/' + get_filename_from_url(url, config['base'])
+        original_list.append(filename)
+        if (os.path.exists(filename)): continue
+        mkdir_if_not_exist(filename)
+        file_put_contents(urllib2.urlopen(url).read(), filename)
+        time.sleep(1)
 
 # HTML を整形して保存する
 html_list = [];
@@ -131,19 +135,23 @@ if (not os.path.exists('html')):
 for url in config['html']:
     src_path = 'original/' + get_filename_from_url(url, config['base'])
     filename = 'html/' + get_filename_from_url(url, config['base'])
-    html_list.append(filename)
-    dst = convert(open(src_path).read(), css_list)
     mkdir_if_not_exist(filename)
-    file_put_contents(lxml.html.tostring(dst, encoding='utf-8', include_meta_content_type=True), filename)
+    if mimetypes.guess_type(filename)[0] == 'text/html':
+        html_list.append(filename)
+        dst = convert(open(src_path).read(), css_list)
+        file_put_contents(lxml.html.tostring(dst, encoding='utf-8', include_meta_content_type=True), filename)
+    else:
+        shutil.copyfile(src_path, filename)
 
 # TODO このへんまだあやしい
 # 目次
 if config['index']:
     filename = 'html/' + get_filename_from_url(config['index'], config['base'])
-    dst = convert(open(config['index']).read(), css_list)
     config['index'] = filename
-    mkdir_if_not_exist(filename)
-    file_put_contents(lxml.html.tostring(dst, encoding='utf-8', include_meta_content_type=True), filename)
+    if not os.path.exists(filename):
+        dst = convert(open(config['index']).read(), css_list)
+        mkdir_if_not_exist(filename)
+        file_put_contents(lxml.html.tostring(dst, encoding='utf-8', include_meta_content_type=True), filename)
 else:
     dst = lxml.html.fromstring(DEFAULT_PAGE_HTML)
     dst.xpath('//head')[0].append(lxml.html.fromstring(u'<title>目次</title>'))
