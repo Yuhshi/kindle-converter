@@ -62,31 +62,6 @@ DEFAULT_OPF = """\
 </package>
 """
 
-def _convert (url):
-    html = urllib2.urlopen(url).read()
-    src = lxml.html.fromstring(html)
-    return content(src)
-
-def convert(src, css_list):
-    src = lxml.html.fromstring(src)
-    dst = lxml.html.fromstring(DEFAULT_PAGE_HTML)
-    head = dst.xpath('//head')[0]
-    body = dst.xpath('//body')[0]
-
-    for css in css_list:
-        style = lxml.html.fromstring('<link rel="stylesheet" type="text/css" />')
-        style.set('href', '../' + css)
-        head.append(style)
-
-    title = src.xpath('//title')[0]
-    head.append(title)
-
-    contents = src.xpath('//div[@id="contents"]')[0]
-    contents.xpath('//div[@class="pageMove"]/a[@href="http://blog.livedoor.jp/blackcode/archives/1700656.html"]')[0].drop_tree()
-    body.append(contents)
-    
-    return dst
-
 def file_put_contents(str, filename, option='w'):
     f = open(filename, option)
     f.write(str)
